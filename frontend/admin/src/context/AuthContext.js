@@ -5,6 +5,8 @@ import { jwtDecode } from "jwt-decode";
 const api = axios.create({
   baseURL: "http://localhost:8000/api/auth",
   withCredentials: true,
+  contentType:"application/json",
+
 });
 
 const AuthContext = createContext();
@@ -19,6 +21,9 @@ export const AuthProvider = ({ children }) => {
 
   const decodeToken = (token) => {
     try {
+      if (!token || typeof token !== "string") {
+        throw new Error("Invalid token specified: must be a string");
+      }
       const decoded = jwtDecode(token);
       return { id: decoded.id, email: decoded.email, is_superuser: decoded.is_superuser };
     } catch (error) {
@@ -26,11 +31,12 @@ export const AuthProvider = ({ children }) => {
       return null;
     }
   };
+  
 
   const login = async (email, password) => {
     try {
       const formData = new URLSearchParams();
-      formData.append("username", email); // OAuth2 expects "username" instead of "email"
+      formData.append("username", email);
       formData.append("password", password);
   
       const res = await api.post("/login", formData, {
@@ -39,23 +45,27 @@ export const AuthProvider = ({ children }) => {
   
       console.log("Login Response:", res.data);
   
-      if (!res.data.is_superuser) {
-        throw new Error("Unauthorized: Only superusers can access");
+      const token = res.data.access_token;
+      if (!token || typeof token !== "string") {
+        throw new Error("Invalid token received from login");
       }
   
-      const token = res.data.access_token;
-      localStorage.setItem("accessToken", token);
+      // Change this:
+      // localStorage.setItem("accessToken", token);
+      // To this:
+      localStorage.setItem("token", token);
       setAccessToken(token);
   
       const decodedUser = decodeToken(token);
       setUser(decodedUser);
       localStorage.setItem("user", JSON.stringify(decodedUser));
-      localStorage.setItem("adminToken", res.data.accessToken);
     } catch (error) {
       console.error("Login error:", error.response?.data || error.message);
-      throw new Error(error.response?.data?.message || "Invalid credentials or server error");
+      throw new Error(error.response?.data?.detail || "Invalid credentials or server error");
     }
   };
+  
+  
   
 
   const logout = async () => {
@@ -75,37 +85,40 @@ export const AuthProvider = ({ children }) => {
   const refreshAccessToken = async () => {
     try {
       const res = await api.post("/refresh-token");
-
-      const token = res.data.accessToken;
+      // Use the correct field name from the response
+      const token = res.data.access_token; // not res.data.accessToken
+      if (!token || typeof token !== "string") {
+        throw new Error("Received invalid token");
+      }
       setAccessToken(token);
-
       const decodedUser = decodeToken(token);
       setUser(decodedUser);
       localStorage.setItem("user", JSON.stringify(decodedUser));
-
       return token;
     } catch (error) {
-      console.error(
-        "Refresh token error:",
-        error.response?.data?.message || error.message
-      );
+      console.error("Refresh token error:", error.response?.data?.message || error.message);
       setAccessToken(null);
       setUser(null);
       localStorage.removeItem("user");
     }
   };
+  
 
   useEffect(() => {
     const interceptor = api.interceptors.response.use(
       (response) => response,
       async (error) => {
+        // Skip refresh logic if the request was to /login or /refresh-token
+        if (error.config && 
+            (error.config.url.includes('/login') || error.config.url.includes('/refresh-token'))) {
+          return Promise.reject(error);
+        }
+        
         if (error.response?.status === 401) {
           try {
             const newAccessToken = await refreshAccessToken();
             if (newAccessToken) {
-              error.config.headers[
-                "Authorization"
-              ] = `Bearer ${newAccessToken}`;
+              error.config.headers["Authorization"] = `Bearer ${newAccessToken}`;
               return api(error.config);
             }
           } catch (refreshError) {
@@ -116,9 +129,10 @@ export const AuthProvider = ({ children }) => {
         return Promise.reject(error);
       }
     );
-
+  
     return () => api.interceptors.response.eject(interceptor);
   }, []);
+  
 
   useEffect(() => {
     const fetchToken = async () => {

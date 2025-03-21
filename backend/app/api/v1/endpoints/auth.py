@@ -123,13 +123,8 @@ async def login(response: Response,form_data: OAuth2PasswordRequestForm = Depend
     }
 
 @router.post("/refresh-token")
-async def refresh_token(
-    response: Response,
-    refresh_token: str = Cookie(None)
-) -> Any:
-    """
-    Refresh access token.
-    """
+async def refresh_token(response: Response, refresh_token: str = Cookie(None)) -> Any:
+    logger.info(f"Received refresh token: {refresh_token}")  # Debug log
     if not refresh_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -137,6 +132,7 @@ async def refresh_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
+
     try:
         payload = jwt.decode(
             refresh_token, settings.SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]

@@ -11,6 +11,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
 const Courses = () => {
+  const baseUrl = process.env.REACT_APP_API_URL;
   const [activeTab, setActiveTab] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [courses, setCourses] = useState([]);
@@ -25,10 +26,11 @@ const Courses = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
-      const response = await axios.get("/courses/teacher/courses", {
+      const response = await axios.get(`${baseUrl}/api/courses/admin`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setCourses(response.data.courses || []);
+      console.log("API Response:", response.data.courses);
     } catch (error) {
       console.error("Error fetching courses:", error);
     } finally {
@@ -120,6 +122,13 @@ const Courses = () => {
           </div>
         </div>
       </div>
+      <button
+  className="cool-button bg-gradient-to-r from-indigo-600 to-purple-600 text-white border-none mt-5 px-4 py-2 rounded-md text-sm cursor-pointer shadow-md transition-transform transform hover:scale-105 active:scale-95"
+  onClick={() => window.open("https://developers.learndash.com/rest-api/v2/", "_blank")}
+>
+  LearnDash API
+</button>
+
 
       {/* Course Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6 mt-6">

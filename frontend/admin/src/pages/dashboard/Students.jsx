@@ -2,16 +2,20 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import {
   FiSearch,
-  FiUserCheck,
-  FiUserX,
-  FiMail,
-  FiEye,
-  FiUserPlus,
-  FiDownload,
   FiFilter,
+  FiPlusCircle,
+  FiUserPlus,
+  FiEye,
+  FiMail,
+  FiDownload,
   FiCalendar,
-  FiAlertCircle
+  FiAlertCircle,
+  FiUserCheck,
+  FiUserX
 } from "react-icons/fi";
+
+// Use the base URL from your .env file
+const baseUrl = process.env.REACT_APP_API_URL;
 
 const Students = () => {
   const [activeTab, setActiveTab] = useState("pending");
@@ -19,6 +23,12 @@ const Students = () => {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [formData, setFormData] = useState({
+    email: "",
+    username: "",
+    password: ""
+  });
 
   useEffect(() => {
     fetchStudents();
@@ -28,22 +38,102 @@ const Students = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
-      const response = await axios.get("/students", {
+      if (!token) {
+        console.error("No token found. Please log in.");
+        setLoading(false);
+        return;
+      }
+  
+      const response = await axios.get(`${baseUrl}/api/users`, {
         headers: { Authorization: `Bearer ${token}` },
+        params: { role: "student" },
       });
-      setStudents(response.data.students || []);
+  
+      console.log("API Response:", response.data); // Debugging: check the data structure
+  
+      // Extract students list from `users` array
+      const data = response.data.users || [];
+      setStudents(data);
     } catch (error) {
-      console.error("Error fetching students:", error);
+      console.error("Error fetching students:", error.response?.data || error.message);
     } finally {
       setLoading(false);
     }
   };
+  
+  useEffect(() => {
+    fetchStudents();
+  }, []);
+  
+  useEffect(() => {
+    console.log("Students List Updated:", students);
+  }, [students]);
+  
+  
+  // Fetch students on component mount
+  useEffect(() => {
+    fetchStudents();
+  }, []);
+  
+  // Log updates to students list
+  useEffect(() => {
+    console.log("Students List Updated:", students);
+  }, [students]);
+  
+  useEffect(() => {
+    fetchStudents();
+  }, []);
+  
+  useEffect(() => {
+    console.log("Students List Updated:", students);
+  }, [students]);
+    
 
+  // Define handleSearch here so it's available in the component's scope.
+  const handleSearch = (e) => {
+    setSearchTerm(e.target.value);
+  };
+
+  // Toggle the "Add Student" form
+  const toggleAddForm = () => {
+    setShowAddForm(!showAddForm);
+  };
+
+  // Handle input changes for the add student form
+  const handleInputChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  // Handle form submission for adding a student
+  const handleAddStudent = async (e) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        email: formData.email,
+        username: formData.username,
+        role: "student",
+        is_active: true,
+        password: formData.password
+      };
+      await axios.post(`${baseUrl}/api/auth/signup`, payload, {
+        headers: { "Content-Type": "application/json" }
+      });
+      alert("Student added successfully");
+      setFormData({ email: "", username: "", password: "" });
+      setShowAddForm(false);
+      fetchStudents();
+    } catch (error) {
+      console.error("Error adding student:", error.response?.data || error.message);
+      alert("Failed to add student");
+    }
+  };
+
+  // Dummy handlers for Approve, Reject, View, Contact
   const handleApprove = async (studentId) => {
     try {
       const token = localStorage.getItem("token");
       await axios.put(
-        `/students/${studentId}/status`,
+        `${baseUrl}/students/${studentId}/status`,
         { action: "approve" },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -53,7 +143,7 @@ const Students = () => {
         )
       );
     } catch (error) {
-      console.error("Error approving student:", error);
+      console.error("Error approving student:", error.response?.data || error.message);
     }
   };
 
@@ -61,7 +151,7 @@ const Students = () => {
     try {
       const token = localStorage.getItem("token");
       await axios.put(
-        `/students/${studentId}/status`,
+        `${baseUrl}/students/${studentId}/status`,
         { action: "reject" },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -71,24 +161,8 @@ const Students = () => {
         )
       );
     } catch (error) {
-      console.error("Error rejecting student:", error);
+      console.error("Error rejecting student:", error.response?.data || error.message);
     }
-  };
-
-  const getPendingStudents = () => {
-    return students.filter((s) => !s.isApproved && !s.isRejected);
-  };
-
-  const getApprovedStudents = () => {
-    return students.filter((s) => s.isApproved);
-  };
-
-  const getRejectedStudents = () => {
-    return students.filter((s) => s.isRejected);
-  };
-
-  const handleFilterToggle = () => {
-    setFilterOpen(!filterOpen);
   };
 
   const handleView = (studentId) => {
@@ -103,485 +177,137 @@ const Students = () => {
     s.username.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Helper functions for statistics
+  const getPendingStudents = () => {
+    return students.filter((s) => !s.isApproved && !s.isRejected);
+  };
+
+  const getApprovedStudents = () => {
+    return students.filter((s) => s.isApproved);
+  };
+
+  const getRejectedStudents = () => {
+    return students.filter((s) => s.isRejected);
+  };
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Student Management</h1>
         <div className="flex space-x-2">
-          <button className="px-4 py-2 bg-[#19a4db] text-white rounded-lg hover:bg-[#1582af] transition-colors text-sm font-medium flex items-center">
-            <FiUserPlus className="mr-2" />
+          <button
+            onClick={toggleAddForm}
+            className="flex items-center px-4 py-2 bg-[#19a4db] text-white rounded-lg hover:bg-[#1582af] transition-colors text-sm font-medium"
+          >
+            <FiPlusCircle className="mr-2" />
             Add Student
           </button>
-          <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium flex items-center">
+          <button className="flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium">
             <FiDownload className="mr-2" />
             Export
           </button>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm mb-6 overflow-hidden">
-        <div className="p-5 border-b border-gray-100">
-          <div className="flex flex-wrap items-center justify-between">
-            <div className="mb-4 md:mb-0">
-              <h2 className="font-semibold text-lg text-gray-800 flex items-center">
-                <FiUserPlus className="mr-2 text-[#19a4db]" />
-                Student Registrations
-              </h2>
-              <p className="text-gray-500 text-sm">
-                {activeTab === "pending"
-                  ? `${getPendingStudents().length} pending approvals`
-                  : activeTab === "approved"
-                  ? `${getApprovedStudents().length} approved students`
-                  : activeTab === "rejected"
-                  ? `${getRejectedStudents().length} rejected applications`
-                  : "All student registrations"}
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center space-x-2">
-              <div className="relative">
-                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search students..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm w-64 focus:outline-none focus:ring-2 focus:ring-[#19a4db]"
-                />
-              </div>
-
-              <button
-                onClick={handleFilterToggle}
-                className={`p-2 border ${
-                  filterOpen
-                    ? "border-[#19a4db] text-[#19a4db] bg-blue-50"
-                    : "border-gray-200 text-gray-600"
-                } rounded-lg hover:bg-gray-50`}
-              >
-                <FiFilter />
-              </button>
-            </div>
+      {showAddForm && (
+        <form onSubmit={handleAddStudent} className="mb-6 p-4 border rounded-lg">
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700">Email</label>
+            <input
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleInputChange}
+              required
+              className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+            />
           </div>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700">Username</label>
+            <input
+              type="text"
+              name="username"
+              value={formData.username}
+              onChange={handleInputChange}
+              required
+              className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+            />
+          </div>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700">Password</label>
+            <input
+              type="password"
+              name="password"
+              value={formData.password}
+              onChange={handleInputChange}
+              required
+              className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+            />
+          </div>
+          <div className="flex space-x-2">
+            <button
+              type="submit"
+              className="px-4 py-2 bg-green-600 text-white rounded-md"
+            >
+              Submit
+            </button>
+            <button
+              type="button"
+              onClick={toggleAddForm}
+              className="px-4 py-2 bg-gray-300 text-black rounded-md"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
 
-          {filterOpen && (
-            <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Course
-                  </label>
-                  <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#19a4db]">
-                    <option value="">All Courses</option>
-                    <option>Introduction to React</option>
-                    <option>Advanced JavaScript</option>
-                    <option>UX/UI Design Fundamentals</option>
-                  </select>
+      <div className="bg-white rounded-xl shadow-sm mb-6 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="relative">
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search students..."
+              value={searchTerm}
+              onChange={handleSearch}
+              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm w-64 focus:outline-none focus:ring-2 focus:ring-[#19a4db]"
+            />
+          </div>
+        </div>
+        {loading ? (
+          <div>Loading students...</div>
+        ) : (
+          <div className="divide-y divide-gray-200">
+            {filteredStudents.map((student) => (
+              <div key={student._id} className="py-4 flex items-center justify-between">
+                <div className="flex items-center">
+                  <img
+                    src={student.photo || "https://via.placeholder.com/150"}
+                    alt={student.username}
+                    className="w-10 h-10 rounded-full mr-4"
+                  />
+                  <div>
+                    <p className="font-medium text-gray-800">{student.username}</p>
+                    <p className="text-gray-600 text-sm">{student.email}</p>
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Date Range
-                  </label>
-                  <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#19a4db]">
-                    <option value="">All Time</option>
-                    <option>Last 7 Days</option>
-                    <option>Last 30 Days</option>
-                    <option>This Month</option>
-                    <option>Custom Range</option>
-                  </select>
-                </div>
-                <div className="flex items-end">
-                  <button className="px-4 py-2 bg-[#19a4db] text-white rounded-lg text-sm">
-                    Apply Filters
+                  <button
+                    onClick={() => handleView(student._id)}
+                    className="px-3 py-1 border border-gray-200 rounded-md text-sm text-gray-600 hover:bg-gray-50"
+                  >
+                    <FiEye className="inline mr-1" /> View
+                  </button>
+                  <button
+                    onClick={() => handleContact(student.email)}
+                    className="px-3 py-1 border border-gray-200 rounded-md text-sm text-gray-600 hover:bg-gray-50 ml-2"
+                  >
+                    <FiMail className="inline mr-1" /> Contact
                   </button>
                 </div>
               </div>
-            </div>
-          )}
-        </div>
-
-        <div className="border-b border-gray-200">
-          <nav className="flex -mb-px">
-            <button
-              onClick={() => setActiveTab("pending")}
-              className={`py-4 px-6 font-medium text-sm ${
-                activeTab === "pending"
-                  ? "border-b-2 border-[#19a4db] text-[#19a4db] bg-blue-50"
-                  : "text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              Pending Approvals
-            </button>
-            <button
-              onClick={() => setActiveTab("approved")}
-              className={`py-4 px-6 font-medium text-sm ${
-                activeTab === "approved"
-                  ? "border-b-2 border-[#19a4db] text-[#19a4db] bg-blue-50"
-                  : "text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              Approved
-            </button>
-            <button
-              onClick={() => setActiveTab("rejected")}
-              className={`py-4 px-6 font-medium text-sm ${
-                activeTab === "rejected"
-                  ? "border-b-2 border-[#19a4db] text-[#19a4db] bg-blue-50"
-                  : "text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              Rejected
-            </button>
-            <button
-              onClick={() => setActiveTab("all")}
-              className={`py-4 px-6 font-medium text-sm ${
-                activeTab === "all"
-                  ? "border-b-2 border-[#19a4db] text-[#19a4db] bg-blue-50"
-                  : "text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              All Students
-            </button>
-          </nav>
-        </div>
-
-        {activeTab === "pending" && (
-          <div className="divide-y divide-gray-100">
-            {filteredStudents.length > 0 ? (
-              filteredStudents.map((student) => (
-                <div
-                  key={student._id}
-                  className="p-5 hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex flex-wrap md:flex-nowrap items-center justify-between">
-                    <div className="flex items-center mb-4 md:mb-0">
-                      <img
-                        src={student.photo}
-                        alt={student.username}
-                        className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm"
-                      />
-                      <div className="ml-4">
-                        <h3 className="font-medium text-gray-800">
-                          {student.username}
-                        </h3>
-                        <div className="flex flex-wrap items-center text-xs text-gray-500 mt-1">
-                          <span className="mr-3">{student.email}</span>
-                          <span className="mr-3">{student.phone}</span>
-                          <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full">
-                            {student.course}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col md:flex-row md:items-center w-full md:w-auto">
-                      <div className="flex items-center mb-4 md:mb-0 md:mr-6">
-                        <FiCalendar className="text-gray-400 mr-1" />
-                        <span className="text-sm text-gray-600">
-                          Applied: {student.appliedDate}
-                        </span>
-                      </div>
-
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleView(student._id)}
-                          className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-50"
-                        >
-                          <FiEye className="inline-block mr-1" />
-                          View
-                        </button>
-                        <button
-                          onClick={() => handleContact(student.email)}
-                          className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-50"
-                        >
-                          <FiMail className="inline-block mr-1" />
-                          Contact
-                        </button>
-                        <button
-                          onClick={() => handleApprove(student._id)}
-                          className="px-3 py-1.5 bg-green-500 text-white rounded-lg text-xs font-medium hover:bg-green-600"
-                        >
-                          <FiUserCheck className="inline-block mr-1" />
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => handleReject(student._id)}
-                          className="px-3 py-1.5 bg-red-500 text-white rounded-lg text-xs font-medium hover:bg-red-600"
-                        >
-                          <FiUserX className="inline-block mr-1" />
-                          Reject
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="p-8 text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 text-blue-500 mb-4">
-                  <FiUserCheck className="w-8 h-8" />
-                </div>
-                <h3 className="text-lg font-medium text-gray-800 mb-1">
-                  No Pending Approvals
-                </h3>
-                <p className="text-gray-500">
-                  All student registrations have been processed.
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === "approved" && (
-          <div className="divide-y divide-gray-100">
-            {filteredStudents.length > 0 ? (
-              filteredStudents.map((student) => (
-                <div
-                  key={student._id}
-                  className="p-5 hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex flex-wrap md:flex-nowrap items-center justify-between">
-                    <div className="flex items-center mb-4 md:mb-0">
-                      <img
-                        src={student.photo}
-                        alt={student.username}
-                        className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm"
-                      />
-                      <div className="ml-4">
-                        <h3 className="font-medium text-gray-800">
-                          {student.username}
-                        </h3>
-                        <div className="flex flex-wrap items-center text-xs text-gray-500 mt-1">
-                          <span className="mr-3">{student.email}</span>
-                          <span className="mr-3">{student.phone}</span>
-                          <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full">
-                            {student.course}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col md:flex-row md:items-center w-full md:w-auto">
-                      <div className="flex items-center mb-4 md:mb-0 md:mr-6">
-                        <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full flex items-center">
-                          <FiUserCheck className="mr-1" />
-                          Approved: {student.approvedDate}
-                        </span>
-                      </div>
-
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleView(student._id)}
-                          className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-50"
-                        >
-                          <FiEye className="inline-block mr-1" />
-                          View
-                        </button>
-                        <button
-                          onClick={() => handleContact(student.email)}
-                          className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-50"
-                        >
-                          <FiMail className="inline-block mr-1" />
-                          Contact
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="p-8 text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 text-gray-500 mb-4">
-                  <FiUserCheck className="w-8 h-8" />
-                </div>
-                <h3 className="text-lg font-medium text-gray-800 mb-1">
-                  No Approved Students
-                </h3>
-                <p className="text-gray-500">
-                  No student applications have been approved yet.
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === "rejected" && (
-          <div className="divide-y divide-gray-100">
-            {filteredStudents.length > 0 ? (
-              filteredStudents.map((student) => (
-                <div
-                  key={student._id}
-                  className="p-5 hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex flex-wrap md:flex-nowrap items-center justify-between">
-                    <div className="flex items-center mb-4 md:mb-0">
-                      <img
-                        src={student.photo}
-                        alt={student.username}
-                        className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm"
-                      />
-                      <div className="ml-4">
-                        <h3 className="font-medium text-gray-800">
-                          {student.username}
-                        </h3>
-                        <div className="flex flex-wrap items-center text-xs text-gray-500 mt-1">
-                          <span className="mr-3">{student.email}</span>
-                          <span className="mr-3">{student.phone}</span>
-                          <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full">
-                            {student.course}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col md:flex-row md:items-center w-full md:w-auto">
-                      <div className="flex flex-col mb-4 md:mb-0 md:mr-6">
-                        <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full flex items-center">
-                          <FiUserX className="mr-1" />
-                          Rejected: {student.rejectedDate}
-                        </span>
-                        <span className="text-sm text-gray-600 mt-1 flex items-center">
-                          <FiAlertCircle className="text-red-500 mr-1" />
-                          Reason: {student.reason}
-                        </span>
-                      </div>
-
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleView(student._id)}
-                          className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-50"
-                        >
-                          <FiEye className="inline-block mr-1" />
-                          View
-                        </button>
-                        <button
-                          onClick={() => handleContact(student.email)}
-                          className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-50"
-                        >
-                          <FiMail className="inline-block mr-1" />
-                          Contact
-                        </button>
-                        <button
-                          onClick={() => handleApprove(student._id)}
-                          className="px-3 py-1.5 bg-green-500 text-white rounded-lg text-xs font-medium hover:bg-green-600"
-                        >
-                          <FiUserCheck className="inline-block mr-1" />
-                          Approve
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="p-8 text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 text-gray-500 mb-4">
-                  <FiUserX className="w-8 h-8" />
-                </div>
-                <h3 className="text-lg font-medium text-gray-800 mb-1">
-                  No Rejected Applications
-                </h3>
-                <p className="text-gray-500">
-                  No student applications have been rejected.
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === "all" && (
-          <div className="divide-y divide-gray-100">
-            {filteredStudents.length > 0 ? (
-              filteredStudents.map((student) => (
-                <div
-                  key={student._id}
-                  className="p-5 hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex flex-wrap md:flex-nowrap items-center justify-between">
-                    <div className="flex items-center mb-4 md:mb-0">
-                      <img
-                        src={student.photo}
-                        alt={student.username}
-                        className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm"
-                      />
-                      <div className="ml-4">
-                        <h3 className="font-medium text-gray-800">
-                          {student.username}
-                        </h3>
-                        <div className="flex flex-wrap items-center text-xs text-gray-500 mt-1">
-                          <span className="mr-3">{student.email}</span>
-                          <span className="mr-3">{student.phone}</span>
-                          <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full">
-                            {student.course}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col md:flex-row md:items-center w-full md:w-auto">
-                      <div className="flex items-center mb-4 md:mb-0 md:mr-6">
-                        {student.isApproved && (
-                          <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
-                            Approved
-                          </span>
-                        )}
-                        {student.isRejected && (
-                          <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full">
-                            Rejected
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleView(student._id)}
-                          className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-50"
-                        >
-                          <FiEye className="inline-block mr-1" />
-                          View
-                        </button>
-                        <button
-                          onClick={() => handleContact(student.email)}
-                          className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-50"
-                        >
-                          <FiMail className="inline-block mr-1" />
-                          Contact
-                        </button>
-                        {student.isApproved === false && (
-                          <button
-                            onClick={() => handleApprove(student._id)}
-                            className="px-3 py-1.5 bg-green-500 text-white rounded-lg text-xs font-medium hover:bg-green-600"
-                          >
-                            <FiUserCheck className="inline-block mr-1" />
-                            Approve
-                          </button>
-                        )}
-                        {student.isRejected === true && (
-                          <button
-                            onClick={() => handleReject(student._id)}
-                            className="px-3 py-1.5 bg-red-500 text-white rounded-lg text-xs font-medium hover:bg-red-600"
-                          >
-                            <FiUserX className="inline-block mr-1" />
-                            Reject
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="p-8 text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 text-gray-500 mb-4">
-                  <FiUserPlus className="w-8 h-8" />
-                </div>
-                <h3 className="text-lg font-medium text-gray-800 mb-1">
-                  No Students Found
-                </h3>
-                <p className="text-gray-500">
-                  Try changing your search criteria.
-                </p>
-              </div>
-            )}
+            ))}
           </div>
         )}
       </div>
@@ -635,11 +361,9 @@ const Students = () => {
               <h3 className="text-3xl font-bold text-gray-800">
                 {Math.round(
                   (getRejectedStudents().length /
-                    (getRejectedStudents().length +
-                      getApprovedStudents().length)) *
+                    (getRejectedStudents().length + getApprovedStudents().length)) *
                     100
-                )}
-                %
+                )}%
               </h3>
               <p className="text-blue-500 text-xs font-medium mt-2">
                 Based on processed applications

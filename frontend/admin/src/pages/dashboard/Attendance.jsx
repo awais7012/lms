@@ -1,7 +1,9 @@
+import axios from 'axios';
 import React, { useState, useEffect } from 'react';
 import { FiSearch, FiDownload, FiCheckCircle, FiXCircle, FiClock, FiAlertCircle, FiPieChart } from 'react-icons/fi';
 
 const Attendance = () => {
+  const baseUrl = process.env.REACT_APP_API_URL;
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedCourse, setSelectedCourse] = useState('all');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -20,8 +22,8 @@ const Attendance = () => {
   }, [selectedCourse, selectedDate]);
 
   const fetchCourses = async () => {
-    try {
-      const response = await fetch('/courses/teacher/courses');
+    try{
+      const response = await axios.post(`${baseUrl}/api/attendance/bulk-record`);
       const data = await response.json();
       setCourses([{ id: 'all', name: 'All Courses' }, ...data.courses]);
     } catch (error) {
@@ -31,7 +33,7 @@ const Attendance = () => {
 
   const fetchAttendance = async (courseId, date) => {
     try {
-      const response = await fetch(`/attendance/course/${courseId}?start_date=${date}&end_date=${date}`);
+      const response = await fetch(`${baseUrl}/api/attendance/course/${courseId}?start_date=${date}&end_date=${date}`);
       const data = await response.json();
       setAttendanceRecords(data.attendance_records || []);
     } catch (error) {
@@ -51,6 +53,8 @@ const Attendance = () => {
   };
 
   const filteredRecords = attendanceRecords;
+  const filteredRecordss = courses;
+
 
   const getStatusIcon = (status) => {
     switch (status) {
@@ -200,18 +204,23 @@ const Attendance = () => {
         </div>
         
         {/* Overview tab content */}
-        {activeTab === 'overview' && (
-          <div>
-            <div className="mb-6">
-              <h3 className="text-lg font-medium text-gray-800 mb-4">Class Attendance Summary</h3>
-              <div className="w-full bg-gray-100 rounded-full h-4 mb-4">
-                <div className="flex h-4 rounded-full overflow-hidden">
-                  <div className="bg-green-500 h-4" style={{ width: `${stats.presentRate}%` }}></div>
-                  <div className="bg-yellow-500 h-4" style={{ width: `${stats.lateRate}%` }}></div>
-                  <div className="bg-blue-500 h-4" style={{ width: `${stats.excusedRate}%` }}></div>
-                  <div className="bg-red-500 h-4" style={{ width: `${stats.absentRate}%` }}></div>
-                </div>
-              </div>
+        {/* Overview tab content */}
+{activeTab === 'overview' && (
+  <div>
+    <div className="mb-6">
+      <h3 className="text-lg font-medium text-gray-800 mb-4">Class Attendance Summary</h3>
+      <div className="w-full bg-gray-100 rounded-full h-4 mb-4">
+        <div className="flex h-4 rounded-full overflow-hidden">
+          <div className="bg-green-500 h-4" style={{ width: `${stats.presentRate}%` }}></div>
+          <div className="bg-yellow-500 h-4" style={{ width: `${stats.lateRate}%` }}></div>
+          <div className="bg-blue-500 h-4" style={{ width: `${stats.excusedRate}%` }}></div>
+          <div className="bg-red-500 h-4" style={{ width: `${stats.absentRate}%` }}></div>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
               <div className="flex flex-wrap gap-4 text-sm">
                 <div className="flex items-center">
                   <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
@@ -256,137 +265,36 @@ const Attendance = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    <tr>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        Introduction to React
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        75%
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        15%
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        10%
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="w-full bg-gray-200 rounded-full h-2.5">
-                          <div className="bg-green-500 h-2.5 rounded-full" style={{ width: '75%' }}></div>
-                        </div>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        Advanced JavaScript
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        85%
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        10%
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        5%
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="w-full bg-gray-200 rounded-full h-2.5">
-                          <div className="bg-green-500 h-2.5 rounded-full" style={{ width: '85%' }}></div>
-                        </div>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        UX/UI Design Fundamentals
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        70%
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        20%
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        10%
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="w-full bg-gray-200 rounded-full h-2.5">
-                          <div className="bg-green-500 h-2.5 rounded-full" style={{ width: '70%' }}></div>
-                        </div>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-        
-        {/* Records tab content */}
-        {activeTab === 'records' && (
-          <div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Student
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Course
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Arrival Time
-                    </th>
-                    <th scope="col" className="relative px-6 py-3">
-                      <span className="sr-only">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredRecords.map((record) => (
-                    <tr key={record.id}>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{record.studentName}</div>
-                        <div className="text-sm text-gray-500">{record.studentId}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {record.course}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(record.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          {getStatusIcon(record.status)}
-                          <span className={`ml-2 capitalize ${
-                            record.status === 'present' ? 'text-green-800' :
-                            record.status === 'absent' ? 'text-red-800' :
-                            record.status === 'late' ? 'text-yellow-800' : 'text-blue-800'
-                          }`}>
-                            {record.status}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {record.arrivalTime || '—'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button className="text-[#19a4db] hover:text-[#1582af]">
-                          Edit
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
+  {courses.map(course => (
+    <tr key={course.id}>
+      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+        {course.name}
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+        {/* These values would need to come from backend or calculate locally */}
+        {course.stats?.presentRate ?? 0}%
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+        {course.stats?.absentRate ?? 0}%
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+        {course.stats?.lateRate ?? 0}%
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap">
+        <div className="w-full bg-gray-200 rounded-full h-2.5">
+          <div 
+            className="bg-green-500 h-2.5 rounded-full" 
+            style={{ width: `${course.stats?.overall ?? 0}%` }}
+          ></div>
+        </div>
+      </td>
+    </tr>
+  ))}
+</tbody>
               </table>
             </div>
           </div>
-        )}
+        
         
         {/* Trends tab content */}
         {activeTab === 'trends' && (
@@ -403,7 +311,7 @@ const Attendance = () => {
           </div>
         )}
       </div>
-    </div>
+    // </div>
   );
 };
 
